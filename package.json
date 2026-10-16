@@ -1,0 +1,15 @@
+{
+  "name": "caponioflix",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Caponioflix — PWA per scoprire film e serie TV",
+  "scripts": {
+    "test": "vitest run",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "eslint": "^9.17.0",
+    "globals": "^15.14.0",
+    "vitest": "^3.0.0"
+  }
+}

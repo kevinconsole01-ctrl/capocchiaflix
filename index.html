@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Caponioflix — scopri film e serie TV, preferiti, continua a guardare e consigliati.">
+    <title>Caponioflix Premium</title>
+    <link rel="icon" type="image/png" href="icon-192.png">
+
+    <!-- PWA: consente di aprire il sito come app a schermo intero (senza barra indirizzi) una volta aggiunto alla home -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#181818">
+
+    <!-- iOS (Safari) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Caponioflix">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <!-- Android (Chrome) -->
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+
+    <!-- Firebase é carregado sob demanda por app.js (login opcional) -->
+    <link rel="stylesheet" href="styles.css">
+    <script>
+        // Aplica o tema salvo antes do render (evita flash branco/escuro)
+        (function () {
+            try {
+                var t = localStorage.getItem('caponioflix_theme');
+                if (t === 'light' || t === 'dark') {
+                    document.documentElement.setAttribute('data-theme', t);
+                }
+            } catch (e) { /* sem localStorage */ }
+        })();
+    </script>
+</head>
+
+<body>
+<div id="splashScreen">
+    <img src="./logo.png" alt="Caponioflix" class="splash-logo" id="splashLogoImg" onerror="this.style.display='none'; document.getElementById('splashLogoFallback').style.display='block';">
+    <span class="splash-logo-fallback" id="splashLogoFallback" style="display:none;">CAPONIOFLIX</span>
+</div>
+
+<div class="main-layout">
+    <header>
+        <div class="logo-wrapper">
+            <a href="index.html" class="logo-link" aria-label="Torna alla home">
+                <img src="./logo.png" alt="Caponioflix" class="app-logo" id="logoImg" onerror="handleLogoError()">
+                <span class="logo-fallback" id="logoText" style="display: none;">CAPONIOFLIX</span>
+            </a>
+        </div>
+
+        <div class="controls-bar">
+            <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Apri filtri" aria-expanded="false">☰</button>
+            <button class="view-btn active" id="homeViewBtn" type="button" onclick="setView('home')" tabindex="0">Home</button>
+            <button class="view-btn" id="favoritesViewBtn" type="button" onclick="setView('favorites')" tabindex="0">Preferiti</button>
+            <button class="view-btn" id="continueViewBtn" type="button" onclick="setView('continue')" tabindex="0">Continua a guardare</button>
+            <button class="view-btn" id="platformsViewBtn" type="button" onclick="setView('platforms')" tabindex="0">Top</button>
+            <button class="view-btn" id="consigliatiViewBtn" type="button" onclick="setView('consigliati')" tabindex="0">Consigliati</button>
+            <button class="btn-random" id="randomBtn" type="button" onclick="apriTitoloRandom()" tabindex="0" aria-label="Scopri un titolo a caso">
+                <span class="dice-icon">🎲</span><span class="random-label">Random</span>
+            </button>
+            <div class="search-box">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="search" id="searchInput" name="site-search" placeholder="Digita per cercare..." oninput="onInputSearch()" onkeydown="if(event.key === 'Enter') cercaImmediata()" tabindex="0" autocomplete="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other">
+                <button type="button" class="search-clear-btn" id="searchClearBtn" onclick="pulisciRicerca()" aria-label="Cancella ricerca">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+                <div class="search-history" id="searchHistory" hidden></div>
+            </div>
+            <button class="theme-toggle" id="themeToggle" type="button" onclick="toggleTheme()" tabindex="0" aria-label="Cambia tema">🌙</button>
+            <button class="account-btn" id="accountBtn" type="button" onclick="apriModaleAccount()" tabindex="0">
+                <span id="accountBtnLabel">Accedi</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="page-shell">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div></div>
+                <button class="sidebar-close" id="sidebarClose" type="button" aria-label="Chiudi filtri">✕</button>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Tipo</div>
+                <div class="type-selector">
+                    <button class="type-btn active" id="btnMovie" onclick="setType('movie')" tabindex="0">Film</button>
+                    <button class="type-btn" id="btnTv" onclick="setType('tv')" tabindex="0">Serie TV</button>
+                </div>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Generi</div>
+                <div class="genre-bar" id="genreBar" role="group" aria-label="Filtra per genere"></div>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Servizio streaming</div>
+                <div class="genre-bar" id="providerBar" role="group" aria-label="Filtra per servizio di streaming"></div>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Anno di uscita</div>
+                <div class="year-range-values">
+                    <span id="yearMinLabel">1950</span>
+                    <span>–</span>
+                    <span id="yearMaxLabel">2026</span>
+                </div>
+                <div class="year-slider" id="yearSlider">
+                    <div class="year-slider-track"></div>
+                    <div class="year-slider-range" id="yearSliderRange"></div>
+                    <input type="range" id="yearMinInput" min="1950" max="2026" value="1950" step="1" aria-label="Anno minimo" tabindex="0">
+                    <input type="range" id="yearMaxInput" min="1950" max="2026" value="2026" step="1" aria-label="Anno massimo" tabindex="0">
+                </div>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Lingua dei contenuti</div>
+                <select id="langSelect" class="sort-select" onchange="mudaLingua(this.value)" aria-label="Lingua dei contenuti" tabindex="0">
+                    <option value="it-IT">Italiano</option>
+                    <option value="pt-BR">Português</option>
+                    <option value="en-US">English</option>
+                </select>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Ordina per</div>
+                <select id="sortSelect" class="sort-select" onchange="mudaOrdenacao(this.value)" aria-label="Ordina risultati" tabindex="0">
+                    <option value="popolarita">Popolarità</option>
+                    <option value="voto">Voto più alto</option>
+                    <option value="recente">Più recenti</option>
+                </select>
+            </div>
+            <div class="sidebar-section">
+                <button type="button" class="filter-reset-btn" onclick="resetFiltri()" tabindex="0">Reimposta filtri</button>
+            </div>
+        </aside>
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <div class="content-stack">
+            <div class="favorites-section" id="favoritesSection">
+                <div class="section-title">Preferiti</div>
+                <div class="favorites-grid" id="favoritesGrid"></div>
+            </div>
+            <div class="continue-section" id="continueSection">
+                <div class="section-title">Continua a guardare</div>
+                <div class="continue-grid" id="continueGrid"></div>
+            </div>
+            <div class="consigliati-section" id="consigliatiSection">
+                <div class="consigliati-header">
+                    <div class="section-title" style="margin:0;">Consigliati per te</div>
+                    <button type="button" class="quiz-restart-btn" id="quizRestartBtn" style="display:none;" onclick="riavviaQuiz()">Rifai il quiz</button>
+                </div>
+                <div id="consigliatiContent"></div>
+            </div>
+            <div class="platforms-section" id="platformsSection">
+                <div class="section-title">Top 10 · Piattaforme Streaming</div>
+                <div class="platform-tabs" id="platformTabs"></div>
+                <div class="platform-grid" id="platformGrid">
+                    <div class="status-msg">Carica le classifiche delle piattaforme...</div>
+                </div>
+            </div>
+            <div class="section-block" id="popularSection">
+                <div class="section-title" id="gridTitle">Popolari del momento</div>
+                <div class="results-grid" id="resultsList">
+                    <div class="status-msg">Caricamento contenuti in corso...</div>
+                </div>
+                <div class="scroll-sentinel" id="scrollSentinel" aria-hidden="true"></div>
+                <div class="load-more-container">
+                    <button class="btn-load-more" id="btnLoadMore" onclick="caricaAltriRisultatiAutomatico()" style="display: none;" tabindex="0" aria-label="Carica altri titoli" title="Carica altri titoli">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="playerModal" class="player-modal" role="dialog" aria-modal="true" aria-label="Lettore video">
+    <button type="button" class="player-fullscreen" onclick="attivaFullscreenPlayer()" aria-label="Schermo intero">⛶</button>
+    <button type="button" class="player-close" onclick="chiudiPlayerModal()" aria-label="Torna indietro">✕</button>
+    <iframe id="playerFrame" src="" title="Lettore video" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="origin"></iframe>
+</div>
+
+<div id="trailerModal" class="trailer-modal" role="dialog" aria-modal="true" aria-label="Anteprima trailer">
+    <button type="button" class="trailer-modal-close" onclick="chiudiTrailerModal()" aria-label="Chiudi">✕</button>
+    <div class="trailer-modal-frame">
+        <iframe id="trailerFrame" src="" title="Trailer" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+        <a class="btn-action trailer-external-link" id="trailerExternalLink" href="#" target="_blank" rel="noopener noreferrer">Apri su YouTube</a>
+    </div>
+</div>
+
+<div id="authModal" class="auth-modal" role="dialog" aria-modal="true" aria-label="Accedi al tuo account">
+    <div class="auth-modal-card">
+        <button class="auth-modal-close" type="button" onclick="chiudiModaleAccount()" aria-label="Chiudi">✕</button>
+
+        <div class="auth-modal-header">
+            <span class="auth-modal-brand">CAPONIO<span>FLIX</span></span>
+            <span class="auth-modal-brand-sub">Account</span>
+        </div>
+        <div class="auth-modal-tear"></div>
+
+        <div id="authViewLoggedOut">
+            <div class="auth-tabs" id="authTabs">
+                <div class="auth-tab-indicator" id="authTabIndicator"></div>
+                <button class="auth-tab active" id="authTabLogin" type="button" onclick="setAuthMode(false)">Accedi</button>
+                <button class="auth-tab" id="authTabRegister" type="button" onclick="setAuthMode(true)">Registrati</button>
+            </div>
+
+            <div class="auth-modal-subtitle" id="authModalSubtitle">Accedi per sincronizzare preferiti, continua a guardare e consigliati su tutti i tuoi dispositivi.</div>
+            <div class="auth-modal-error" id="authModalError"></div>
+
+            <form id="authForm" autocomplete="on" onsubmit="event.preventDefault(); eseguiAuthSubmit();">
+                <div class="auth-input-group">
+                    <input type="email" id="authEmailInput" name="email" autocomplete="email" placeholder="Email">
+                    <svg class="auth-input-icon" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z" opacity="0"/><path d="M22 6 12 13 2 6"/><path d="M2 6h20v12H2z"/></svg>
+                </div>
+                <div class="auth-input-group has-toggle">
+                    <input type="password" id="authPasswordInput" name="password" autocomplete="current-password" placeholder="Password (almeno 6 caratteri)">
+                    <svg class="auth-input-icon" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+                    <button type="button" class="auth-eye-toggle" id="authEyeToggle" onclick="togglePasswordVisibility()" aria-label="Mostra password">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+                </div>
+
+                <div class="auth-modal-row" id="authRememberRow">
+                    <label class="auth-remember-label">
+                        <input type="checkbox" id="authRememberCheckbox" checked>
+                        Ricordami
+                    </label>
+                    <a class="auth-forgot-link" id="authForgotLink" onclick="richiediResetPassword()">Password dimenticata?</a>
+                </div>
+
+                <button class="auth-submit-btn" type="submit" id="authSubmitBtn">Accedi</button>
+            </form>
+        </div>
+
+        <div id="authViewLoggedIn" style="display:none;">
+            <div class="auth-account-avatar" id="authAccountAvatar"></div>
+            <div class="auth-modal-account-info">Accesso effettuato come<strong id="authLoggedInEmail"></strong></div>
+            <div class="auth-sync-status" id="authSyncStatus"></div>
+            <div class="auth-modal-actions">
+                <button class="btn-secondary" type="button" onclick="eseguiLogout()">Esci</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="overviewModal" class="overview-modal" role="dialog" aria-modal="true" aria-label="Trama completa">
+    <div class="overview-modal-card">
+        <button type="button" class="trailer-modal-close" onclick="chiudiTramaModal()" aria-label="Chiudi">✕</button>
+        <div class="overview-modal-title" id="overviewModalTitle">Trama</div>
+        <div class="overview-modal-meta" id="overviewModalMeta"></div>
+        <div class="overview-modal-text" id="overviewModalText"></div>
+        <div class="overview-modal-cast" id="overviewModalCast"></div>
+    </div>
+</div>
+
+<div id="progressModal" class="progress-modal" role="dialog" aria-modal="true" aria-label="Salva posizione visione">
+    <div class="progress-modal-card">
+        <button type="button" class="trailer-modal-close" onclick="chiudiProgressoModal()" aria-label="Chiudi">✕</button>
+        <div class="progress-modal-title" id="progressModalTitle">Continua a guardare</div>
+        <div class="progress-modal-subtitle">A che minuto sei arrivato?</div>
+        <div class="progress-slider-values">
+            <span id="progressCurrentLabel">0 min</span>
+            <span id="progressTotalLabel">/ 0 min</span>
+        </div>
+        <div class="progress-slider" id="progressSlider">
+            <div class="progress-slider-track"></div>
+            <div class="progress-slider-fill" id="progressSliderFill"></div>
+            <input type="range" id="progressInput" min="0" max="1" value="0" step="1" aria-label="Minuto raggiunto" oninput="aggiornaLabelProgresso()">
+        </div>
+        <div class="progress-modal-actions">
+            <button type="button" class="btn-action" onclick="chiudiProgressoModal()">Annulla</button>
+            <button type="button" class="btn-action btn-save" onclick="salvaProgresso()">Salva</button>
+        </div>
+    </div>
+</div>
+
+<div id="recModal" class="rec-modal" role="dialog" aria-modal="true" aria-label="Dettaglio titolo">
+    <div class="rec-modal-card">
+        <button type="button" class="trailer-modal-close" id="recModalCloseBtn" onclick="chiudiPopupConsigliato()" aria-label="Chiudi">✕</button>
+        <div class="rec-modal-body">
+            <img class="hero-poster" id="heroPoster" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='185' height='278'%3E%3Crect fill='%231f1f1f' width='100%25' height='100%25'/%3E%3Ctext x='50%25' y='50%25' fill='%23666' font-family='sans-serif' font-size='12' text-anchor='middle' dominant-baseline='middle'%3ECaricamento...%3C/text%3E%3C/svg%3E" alt="Poster">
+            <div class="hero-details">
+                <div class="hero-title" id="heroTitle">Caricamento...</div>
+                <div class="hero-meta" id="heroMeta">---</div>
+                <div class="hero-overview" id="heroOverview">...</div>
+                <button class="btn-action" type="button" onclick="apriTramaCompleta()" style="width: fit-content; margin-top: 4px;">Mostra altro</button>
+
+                <div class="episodes-selector" id="episodesFrame">
+                    <label>Stagione:
+                        <select id="seasonInput" tabindex="0"></select>
+                    </label>
+                    <label>Episodio:
+                        <select id="episodeInput" tabindex="0"></select>
+                    </label>
+                </div>
+
+                <div class="hero-actions">
+                    <button class="btn-play-large" id="btnPlay" onclick="riproduciInPagina()" tabindex="0" aria-label="Guarda ora">
+                        ▶
+                    </button>
+                    <button class="btn-favorite" id="btnFavorite" type="button" onclick="toggleFavorite(elementoSelezionato)" tabindex="0" aria-label="Aggiungi ai preferiti" aria-pressed="false">♡</button>
+                    <button class="btn-progress" id="btnProgress" type="button" onclick="apriProgressoModal()" tabindex="0" aria-label="Salva posizione visione" style="display:none;">⏱</button>
+                    <button class="btn-action btn-trailer" type="button" onclick="showTrailer()" tabindex="0">Trailer</button>
+                </div>
+            </div>
+        </div>
+
+        <div style="min-width:0; margin-top:20px;">
+            <div class="recs-header" id="recsHeader" style="display:none; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
+                <div class="section-title" id="recsTitle" style="margin:0;">Potrebbe piacerti anche</div>
+                <button class="recs-toggle" id="recsToggleBtn" type="button" onclick="toggleRecs()" aria-expanded="true">Nascondi ▴</button>
+            </div>
+            <div id="recsGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(90px, 1fr)); gap:8px; width:100%;"></div>
+        </div>
+    </div>
+</div>
+<div class="toast-container" id="toastContainer" aria-live="polite"></div>
+<script src="helpers.js" defer></script>
+<script src="app.js" defer></script>
+</body>
+</html>
